@@ -3347,16 +3347,6 @@
       collect: 'collect',
       harvest: 'collect',
       steal: 'collect',
-      water: 'water',
-      watering: 'water',
-      bug: 'killBug',
-      insect: 'killBug',
-      killbug: 'killBug',
-      kill_bug: 'killBug',
-      grass: 'eraseGrass',
-      weed: 'eraseGrass',
-      erasegrass: 'eraseGrass',
-      erase_grass: 'eraseGrass',
       dead: 'eraseDead',
       withered: 'eraseDead',
       erase_dead: 'eraseDead',
@@ -3423,18 +3413,6 @@
       count: list.length,
       list
     });
-  }
-
-  function findWaterableGrids(opts) {
-    return findActionableGrids('water', opts);
-  }
-
-  function findEraseGrassGrids(opts) {
-    return findActionableGrids('eraseGrass', opts);
-  }
-
-  function findKillBugGrids(opts) {
-    return findActionableGrids('killBug', opts);
   }
 
   function findDeadGrids(opts) {
@@ -6615,9 +6593,6 @@
     findHarvestableGrids,
     findMatureGrids,
     findActionableGrids,
-    findWaterableGrids,
-    findEraseGrassGrids,
-    findKillBugGrids,
     findDeadGrids,
     inspectOneClickToolNodes,
     findOneClickManager,
@@ -6677,9 +6652,6 @@
       'gameCtl.summarizeAllGrids({ includePaths: true })',
       'gameCtl.findHarvestableGrids(opts)',
       'gameCtl.findMatureGrids(opts)',
-      'gameCtl.findWaterableGrids(opts)',
-      'gameCtl.findEraseGrassGrids(opts)',
-      'gameCtl.findKillBugGrids(opts)',
       'gameCtl.findDeadGrids(opts)',
       'gameCtl.inspectOneClickToolNodes()',
       'gameCtl.getOneClickManagerState()',
@@ -6691,12 +6663,6 @@
       'gameCtl.getPlantCompByLandId(landId)',
       'gameCtl.getHarvestablePlantLandIds(opts)',
       'gameCtl.harvestSingleLand(landId, opts)',
-      'gameCtl.waterSingleLand(landId, opts)',
-      'gameCtl.killBugSingleLand(landId, opts)',
-      'gameCtl.eraseGrassSingleLand(landId, opts)',
-      'gameCtl.waterLands(landIds, opts)',
-      'gameCtl.killBugLands(landIds, opts)',
-      'gameCtl.eraseGrassLands(landIds, opts)',
       'gameCtl.clickMatureEffect(landId, opts)',
       'gameCtl.plantSingleLand(seedId, landId, opts)',
       'gameCtl.plantSeedsOnLands(seedId, landIds, opts)',
