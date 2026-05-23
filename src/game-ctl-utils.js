@@ -41,15 +41,18 @@ function hashButtonScript(script) {
 async function probeGameCtl(session, requiredMethods) {
   const methods = Array.isArray(requiredMethods) ? requiredMethods.filter(Boolean) : [];
   const expr = `(() => {
-    const ctl = typeof gameCtl === "object" && gameCtl ? gameCtl : null;
-    const methods = ${JSON.stringify(methods)};
-    const state = {
+    var ctl = typeof gameCtl === "object" && gameCtl ? gameCtl : null;
+    if (!ctl && typeof globalThis !== "undefined") {
+      ctl = typeof globalThis.gameCtl === "object" && globalThis.gameCtl ? globalThis.gameCtl : null;
+    }
+    var methods = ${JSON.stringify(methods)};
+    var state = {
       hasGameCtl: !!ctl,
       scriptHash: ctl && typeof ctl.__scriptHash === "string" ? ctl.__scriptHash : null,
       methods: {}
     };
-    for (let i = 0; i < methods.length; i++) {
-      const key = methods[i];
+    for (var i = 0; i < methods.length; i++) {
+      var key = methods[i];
       state.methods[key] = !!(ctl && typeof ctl[key] === "function");
     }
     return state;
@@ -84,13 +87,26 @@ async function ensureGameCtl(session, projectRoot, requiredMethods = []) {
   });
 
   state = await probeGameCtl(session, requiredMethods);
-  const injectedHasAllMethods =
-    state &&
-    state.hasGameCtl &&
-    requiredMethods.every((key) => state.methods && state.methods[key]);
-  const injectedHasLatestScript = state && state.scriptHash === scriptHash;
-  if (!injectedHasAllMethods || !injectedHasLatestScript) {
-    throw new Error(`button.js 注入后 gameCtl.${requiredMethods.join(", ")} 仍不可用`);
+  if (!state) {
+    throw new Error(
+      `button.js 注入后 gameCtl 探测失败（probeGameCtl 返回 null，CDP evaluate 异常）`
+    );
+  }
+  if (!state.hasGameCtl) {
+    throw new Error(
+      `button.js 注入后 gameCtl 仍不存在于 global scope（scriptHash=${state.scriptHash}）`
+    );
+  }
+  const missingMethods = requiredMethods.filter((key) => !(state.methods && state.methods[key]));
+  if (missingMethods.length > 0) {
+    throw new Error(
+      `button.js 注入后 gameCtl 以下方法不可用: ${missingMethods.join(", ")}`
+    );
+  }
+  if (state.scriptHash !== scriptHash) {
+    throw new Error(
+      `button.js 注入后 scriptHash 不匹配: 期望 ${scriptHash}，实际 ${state.scriptHash}`
+    );
   }
   return { injected: true, state };
 }
