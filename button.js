@@ -43,9 +43,6 @@
     return typeof n === 'number' && isFinite(n) ? Math.round(n * 100) / 100 : n;
   }
 
-   catch (_) {}
-  }
-
   function scene() {
     return cc.director.getScene();
   }
