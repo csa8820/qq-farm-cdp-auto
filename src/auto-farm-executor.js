@@ -782,9 +782,8 @@ async function runCurrentFarmOneClickTasks(session, callGameCtl, opts) {
 
   if (includeCollect) specs.push({ key: "collect", op: "HARVEST" });
   if (farmType === "own") {
-    if (includeEraseGrass) specs.push({ key: "eraseGrass", op: "ERASE_GRASS" });
-    if (includeKillBug) specs.push({ key: "killBug", op: "KILL_BUG" });
-    if (includeWater) specs.push({ key: "water", op: "WATER" });
+    const hasCare = includeEraseGrass || includeKillBug || includeWater;
+    if (hasCare) specs.push({ key: "farming", op: "FARMING" });
   }
 
   const actions = [];
@@ -823,7 +822,7 @@ async function runCurrentFarmOneClickTasks(session, callGameCtl, opts) {
     }
 
     try {
-      if (useBatchCareExpCheck && spec.key !== "collect") {
+      if (useBatchCareExpCheck && spec.key !== "collect" && spec.key !== "farming") {
         const careSpec = {
           key: spec.key,
           ...getCareActionExecutor(spec.key),

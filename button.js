@@ -3499,7 +3499,7 @@
   }
 
   function getOneClickOperationNames() {
-    return ['HARVEST', 'WATER', 'ERASE_GRASS', 'KILL_BUG'];
+    return ['HARVEST', 'FARMING'];
   }
 
   function resolveOneClickOperationIndex(typeOrIndex) {
@@ -3512,14 +3512,17 @@
       'SHOU_HUO': 0,
       '收获': 0,
       '一键收获': 0,
+      'FARMING': 1,
+      '务农': 1,
+      '一键务农': 1,
       'WATER': 1,
       '浇水': 1,
-      'ERASE_GRASS': 2,
-      'GRASS': 2,
-      '除草': 2,
-      'KILL_BUG': 3,
-      'BUG': 3,
-      '除虫': 3
+      'ERASE_GRASS': 1,
+      'GRASS': 1,
+      '除草': 1,
+      'KILL_BUG': 1,
+      'BUG': 1,
+      '除虫': 1
     };
     if (aliases.hasOwnProperty(raw)) return aliases[raw];
     throw new Error('Unknown one-click operation: ' + typeOrIndex);
