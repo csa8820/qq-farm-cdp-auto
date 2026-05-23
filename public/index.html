@@ -119,6 +119,26 @@
           <p class="summary-note" id="txtInjectState">等待脚本状态</p>
           <p class="summary-note" id="txtRuntimeNotes">QQ WS 模式不需要注入；画面预览仍然只在 CDP 路线可用。</p>
         </article>
+
+        <article class="card span-full">
+          <div class="card-head">
+            <div>
+              <h2>调试执行</h2>
+              <p class="hint">直接对游戏运行时执行 <code>gameCtl.*</code> 调用或任意 JS 表达式（CDP 路线支持 eval，QQ 路线仅支持 call）。</p>
+            </div>
+          </div>
+          <div class="input-grid single">
+            <label class="field-block">
+              <span>调用路径 / 表达式</span>
+              <input type="text" id="iptDebugInput" value="gameCtl.getOneClickManagerState()" placeholder="gameCtl.getOneClickManagerState()" />
+            </label>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action secondary" id="btnDebugCall">执行 Call</button>
+            <button type="button" class="ghost" id="btnDebugEval">执行 Eval (CDP)</button>
+          </div>
+          <pre class="log side" id="logDebugResult" style="max-height:300px; overflow:auto; white-space:pre-wrap;"></pre>
+        </article>
       </div>
     </section>
 

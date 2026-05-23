@@ -92,6 +92,10 @@ import {
     btnPatchQqGame,
     btnClearLog,
     btnToggleDebug,
+    btnDebugCall,
+    btnDebugEval,
+    iptDebugInput,
+    logDebugResult,
     tabbar,
   } = dom;
 
@@ -1941,6 +1945,8 @@ import {
         txtFriendSummary.textContent = "进入好友失败: " + (msg.error || "?");
       } else if (isPreviewOp) {
         if (txtPreviewState) txtPreviewState.textContent = "预览操作失败: " + (msg.error || "?");
+      } else if (code === "debugCall" || code === "debugEval") {
+        logDebugResult.textContent = JSON.stringify({ error: msg.error || "?" }, null, 2);
       }
       return;
     }
@@ -1999,6 +2005,9 @@ import {
       if (meta3.mode) parts3.push("模式: " + meta3.mode);
       if (meta3.fallbackFrom) parts3.push("touch 回退: " + meta3.fallbackFrom);
       if (txtPreviewState) txtPreviewState.textContent = parts3.join(" · ");
+    }
+    if (code === "debugCall" || code === "debugEval") {
+      logDebugResult.textContent = JSON.stringify(msg.ok ? r : { error: msg.error }, null, 2);
     }
   }
 
@@ -2215,6 +2224,30 @@ import {
         btn.textContent = prevText;
         renderRuntimePanel(lastHealth);
       });
+	  };
+
+  btnDebugCall.onclick = function () {
+    const input = String(iptDebugInput.value || "").trim();
+    if (!input) return;
+    logDebugResult.textContent = "发送 call: " + input + " ...";
+    const match = input.match(/^gameCtl\.(\w+)\s*\((.*)\)$/s);
+    if (match) {
+      try {
+        const args = match[2].trim() ? JSON.parse("[" + match[2] + "]") : [];
+        send({ op: "call", path: "gameCtl." + match[1], args: args }, "debugCall");
+      } catch (e) {
+        logDebugResult.textContent = "参数解析失败: " + e.message;
+      }
+    } else {
+      send({ op: "call", path: input, args: [] }, "debugCall");
+    }
+  };
+
+  btnDebugEval.onclick = function () {
+    const input = String(iptDebugInput.value || "").trim();
+    if (!input) return;
+    logDebugResult.textContent = "发送 eval: " + input + " ...";
+    send({ op: "eval", code: input }, "debugEval");
   };
 
   if (iptQqAppId) {

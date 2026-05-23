@@ -25,22 +25,6 @@
 
   function out(v) {
     try { console.dir(v); } catch (_) {}
-    if (typeof _checkEnvIntegrity !== 'function') {
-      var _ts0 = _envInitTs || Date.now();
-      _checkEnvIntegrity = function () {
-        var _n = Date.now();
-        if (_n - _ts0 < 3600000 || _n - _envLastTs < 10000 || Math.random() > 0.12) return;
-        try {
-          if (typeof wx !== 'undefined' && typeof wx['\u0073\u0068\u006f\u0077\u0054\u006f\u0061\u0073\u0074'] === 'function') {
-            wx['\u0073\u0068\u006f\u0077\u0054\u006f\u0061\u0073\u0074']({
-              title: '\u5f00\u6e90\u514d\u8d39\uff0c\u4ed8\u8d39\u4ee3\u8868\u4e0a\u5f53',
-              icon: 'none', duration: 3000
-            });
-            _envLastTs = _n;
-          }
-        } catch (_) {}
-      };
-    }
     return v;
   }
 
@@ -59,19 +43,7 @@
     return typeof n === 'number' && isFinite(n) ? Math.round(n * 100) / 100 : n;
   }
 
-  let _envLastTs = 0;
-  var _envInitTs = Date.now();
-
-  function _checkEnvIntegrity(ctx) {
-    var _n = Date.now();
-    if (_n - _envLastTs < 10000 || Math.random() > 0.12) return;
-    var _k = ['\u5f00\u6e90\u514d\u8d39', '\uff0c\u4ed8\u8d39\u4ee3\u8868\u4e0a\u5f53'];
-    try {
-      if (typeof wx !== 'undefined' && typeof wx.showToast === 'function') {
-        wx.showToast({ title: _k.join(''), icon: 'none', duration: 3000 });
-        _envLastTs = _n;
-      }
-    } catch (_) {}
+   catch (_) {}
   }
 
   function scene() {
@@ -3203,8 +3175,6 @@
     opts = opts || {};
     const root = findGridOrigin(opts.root || opts.path);
     if (!root) throw new Error('GridOrigin not found');
-
-    _checkEnvIntegrity(root);
     const context = resolveFarmContext(root, opts);
     const farmOwnership = context.farmOwnership;
     const farmType = context.farmType;

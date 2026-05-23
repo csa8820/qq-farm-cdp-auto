@@ -64,6 +64,10 @@ export const dom = {
   btnPatchQqGame: document.getElementById("btnPatchQqGame"),
   btnClearLog: document.getElementById("btnClearLog"),
   btnToggleDebug: document.getElementById("btnToggleDebug"),
+  btnDebugCall: document.getElementById("btnDebugCall"),
+  btnDebugEval: document.getElementById("btnDebugEval"),
+  iptDebugInput: document.getElementById("iptDebugInput"),
+  logDebugResult: document.getElementById("logDebugResult"),
   tabbar: document.querySelector(".tabbar"),
 };
 
