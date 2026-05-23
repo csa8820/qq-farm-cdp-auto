@@ -1037,6 +1037,37 @@ async function runCurrentFriendFarmTasks(session, callGameCtl, statusBefore, opt
     await runSpecialCollect(!!(opts && opts.stopOnError));
   }
 
+  const farmingBefore = getWorkCount(currentStatus, "farming");
+  if (farmingBefore > 0) {
+    try {
+      const trigger = await triggerOneClickOperation(session, callGameCtl, "FARMING", {
+        includeBefore: false,
+        includeAfter: false,
+      });
+      if (actionWaitMs > 0) {
+        await wait(actionWaitMs);
+      }
+      await refreshStatus();
+      const farmingAfter = getWorkCount(currentStatus, "farming");
+      actions.push({
+        ok: true,
+        key: "farming",
+        op: "FARMING",
+        beforeCount: farmingBefore,
+        afterCount: farmingAfter,
+        trigger,
+      });
+    } catch (error) {
+      actions.push({
+        ok: false,
+        key: "farming",
+        op: "FARMING",
+        beforeCount: farmingBefore,
+        error: toErrorMessage(error),
+      });
+    }
+  }
+
   return {
     farmType: "friend",
     careMode: "none",
