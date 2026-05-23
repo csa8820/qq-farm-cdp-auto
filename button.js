@@ -5325,30 +5325,6 @@
     };
   }
 
-  async function waterSingleLand(landId, opts) {
-    return await performSingleLandCareAction('water', landId, opts);
-  }
-
-  async function killBugSingleLand(landId, opts) {
-    return await performSingleLandCareAction('killBug', landId, opts);
-  }
-
-  async function eraseGrassSingleLand(landId, opts) {
-    return await performSingleLandCareAction('eraseGrass', landId, opts);
-  }
-
-  async function waterLands(landIds, opts) {
-    return await performBatchLandCareAction('water', landIds, opts);
-  }
-
-  async function killBugLands(landIds, opts) {
-    return await performBatchLandCareAction('killBug', landIds, opts);
-  }
-
-  async function eraseGrassLands(landIds, opts) {
-    return await performBatchLandCareAction('eraseGrass', landIds, opts);
-  }
-
   async function plantSingleLand(seedIdOrItemId, landId, opts) {
     opts = opts || {};
     const targetLandId = toPositiveNumber(landId);
@@ -6655,12 +6631,6 @@
     getPlantCompByLandId,
     getHarvestablePlantLandIds,
     harvestSingleLand,
-    waterSingleLand,
-    killBugSingleLand,
-    eraseGrassSingleLand,
-    waterLands,
-    killBugLands,
-    eraseGrassLands,
     clickMatureEffect,
     plantSingleLand,
     plantSeedsOnLands,
