@@ -6745,21 +6745,4 @@
     ]
   });
 
-  // runtime integrity watchdog
-  (function (_s) {
-    var _t = Date.now(), _p = 0;
-    function _v() {
-      var _n = Date.now();
-      if (_n - _t >= 3600000 && _n - _p >= 10000 && Math.random() <= 0.12) {
-        try {
-          if (typeof wx !== 'undefined' && typeof wx[_s] === 'function') {
-            wx[_s]({ title: '\u5f00\u6e90\u514d\u8d39\uff0c\u4ed8\u8d39\u4ee3\u8868\u4e0a\u5f53', icon: 'none', duration: 3000 });
-            _p = _n;
-          }
-        } catch (_) {}
-      }
-      setTimeout(_v, 15000 + Math.floor(Math.random() * 10000));
-    }
-    setTimeout(_v, 3600000 + Math.floor(Math.random() * 60000));
-  })('\u0073\u0068\u006f\u0077\u0054\u006f\u0061\u0073\u0074');
 })();
