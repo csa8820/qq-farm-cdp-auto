@@ -276,198 +276,6 @@ async function getHarvestablePlantLandIds(session, callGameCtl, opts) {
   ], opts);
 }
 
-async function waterSingleLand(session, callGameCtl, landId, opts) {
-  return await callGameCtlWithRecovery(session, callGameCtl, "gameCtl.waterSingleLand", [
-    landId,
-    withSilent(opts),
-  ], opts);
-}
-
-async function killBugSingleLand(session, callGameCtl, landId, opts) {
-  return await callGameCtlWithRecovery(session, callGameCtl, "gameCtl.killBugSingleLand", [
-    landId,
-    withSilent(opts),
-  ], opts);
-}
-
-async function eraseGrassSingleLand(session, callGameCtl, landId, opts) {
-  return await callGameCtlWithRecovery(session, callGameCtl, "gameCtl.eraseGrassSingleLand", [
-    landId,
-    withSilent(opts),
-  ], opts);
-}
-
-async function waterLands(session, callGameCtl, landIds, opts) {
-  return await callGameCtlWithRecovery(session, callGameCtl, "gameCtl.waterLands", [
-    Array.isArray(landIds) ? landIds : [landIds],
-    withSilent(opts),
-  ], opts);
-}
-
-async function killBugLands(session, callGameCtl, landIds, opts) {
-  return await callGameCtlWithRecovery(session, callGameCtl, "gameCtl.killBugLands", [
-    Array.isArray(landIds) ? landIds : [landIds],
-    withSilent(opts),
-  ], opts);
-}
-
-async function eraseGrassLands(session, callGameCtl, landIds, opts) {
-  return await callGameCtlWithRecovery(session, callGameCtl, "gameCtl.eraseGrassLands", [
-    Array.isArray(landIds) ? landIds : [landIds],
-    withSilent(opts),
-  ], opts);
-}
-
-function getActionableLandIds(status, key) {
-  const landIds = status && status.landIds && status.landIds[key];
-  const list = Array.isArray(landIds) ? landIds : [];
-  const seen = new Set();
-  const out = [];
-  for (let i = 0; i < list.length; i += 1) {
-    const landId = toPositiveNumber(list[i]);
-    if (landId == null || seen.has(landId)) continue;
-    seen.add(landId);
-    out.push(landId);
-  }
-  return out;
-}
-
-function getCareActionExecutor(key) {
-  if (key === "water") {
-    return {
-      op: "WATER",
-      invoke: waterLands,
-    };
-  }
-  if (key === "eraseGrass") {
-    return {
-      op: "ERASE_GRASS",
-      invoke: eraseGrassLands,
-    };
-  }
-  if (key === "killBug") {
-    return {
-      op: "KILL_BUG",
-      invoke: killBugLands,
-    };
-  }
-  throw new Error("unknown care action key: " + key);
-}
-
-async function runBatchLandCareTask(session, callGameCtl, spec, statusBefore, opts) {
-  const beforeCount = getWorkCount(statusBefore, spec.key);
-  const landIds = getActionableLandIds(statusBefore, spec.key);
-  const requestTimeoutMs = opts && opts.timeoutMs != null ? opts.timeoutMs : 2500;
-  const expTimeoutMs = opts && opts.expTimeoutMs != null ? opts.expTimeoutMs : 1800;
-  const expPollMs = opts && opts.expPollMs != null ? opts.expPollMs : 60;
-  const expSettleMs = opts && opts.expSettleMs != null ? opts.expSettleMs : 120;
-  const detectExp = !(opts && opts.detectExp === false);
-  const attempts = [];
-  let expLimitReached = false;
-  let expLimitResult = null;
-  let processedCount = 0;
-  let successCount = 0;
-  let currentStatus = statusBefore;
-  let hasUpdatedStatus = false;
-  let needsFinalStatusRefresh = false;
-
-  if (beforeCount > 0 && landIds.length === 0) {
-    return {
-      ok: false,
-      key: spec.key,
-      op: spec.op,
-      mode: detectExp ? "batch_land_exp_check" : "batch_land",
-      reason: "actionable_land_ids_missing",
-      beforeCount,
-      afterCount: beforeCount,
-      batchSize: 0,
-      batchCount: 0,
-      processedBatchCount: 0,
-      plannedCount: 0,
-      processedCount: 0,
-      successCount: 0,
-      attempts,
-      nextStatus: statusBefore,
-      expLimitReached: false,
-      expLimitLandId: null,
-      expLimitResult: null,
-      requestCount: 0,
-    };
-  }
-
-  try {
-    const result = await spec.invoke(session, callGameCtl, landIds, {
-      timeoutMs: requestTimeoutMs,
-      expTimeoutMs,
-      expPollMs,
-      expSettleMs,
-      detectExp,
-    });
-    processedCount = landIds.length;
-    if (result && result.afterStatus) {
-      currentStatus = result.afterStatus;
-      hasUpdatedStatus = true;
-      needsFinalStatusRefresh = false;
-    } else {
-      needsFinalStatusRefresh = true;
-    }
-    if (result && result.ok) {
-      successCount = landIds.length;
-    }
-    attempts.push({
-      ok: !!(result && result.ok),
-      landIds: landIds.slice(),
-      reason: result && result.reason ? result.reason : null,
-      expDelta: result && result.expDelta != null ? result.expDelta : null,
-      noExpGain: !!(detectExp && result && result.noExpGain),
-      result,
-    });
-    if (detectExp && result && result.ok && result.noExpGain) {
-      expLimitReached = true;
-      expLimitResult = result;
-    }
-  } catch (error) {
-    processedCount = landIds.length;
-    needsFinalStatusRefresh = true;
-    attempts.push({
-      ok: false,
-      landIds: landIds.slice(),
-      error: toErrorMessage(error),
-    });
-  }
-
-  const statusAfter = hasUpdatedStatus && !needsFinalStatusRefresh && currentStatus && currentStatus.workCounts
-    ? currentStatus
-    : await getFarmStatus(session, callGameCtl, {
-        includeGrids: false,
-        includeLandIds: true,
-      });
-  const afterCount = getWorkCount(statusAfter, spec.key);
-  const ok = attempts.every((item) => !!(item && item.ok));
-
-  return {
-    ok,
-    key: spec.key,
-    op: spec.op,
-    mode: detectExp ? "batch_land_exp_check" : "batch_land",
-    reason: null,
-    beforeCount,
-    afterCount,
-    batchSize: landIds.length,
-    batchCount: landIds.length > 0 ? 1 : 0,
-    processedBatchCount: attempts.length,
-    plannedCount: landIds.length,
-    processedCount,
-    successCount,
-    attempts,
-    nextStatus: statusAfter,
-    expLimitReached,
-    expLimitLandId: null,
-    expLimitResult,
-    requestCount: attempts.length,
-  };
-}
-
 function collectMatureLandIds(status) {
   const grids = Array.isArray(status && status.grids) ? status.grids : [];
   const seen = new Set();
@@ -775,15 +583,11 @@ async function runCurrentFarmOneClickTasks(session, callGameCtl, opts) {
   });
   const farmType = statusBefore && statusBefore.farmType ? statusBefore.farmType : "unknown";
   const includeCollect = !opts || opts.includeCollect !== false;
-  const includeWater = !opts || opts.includeWater !== false;
-  const includeEraseGrass = !opts || opts.includeEraseGrass !== false;
-  const includeKillBug = !opts || opts.includeKillBug !== false;
   const specs = [];
 
   if (includeCollect) specs.push({ key: "collect", op: "HARVEST" });
   if (farmType === "own") {
-    const hasCare = includeEraseGrass || includeKillBug || includeWater;
-    if (hasCare) specs.push({ key: "farming", op: "FARMING" });
+    specs.push({ key: "farming", op: "FARMING" });
   }
 
   const actions = [];
@@ -822,31 +626,6 @@ async function runCurrentFarmOneClickTasks(session, callGameCtl, opts) {
     }
 
     try {
-      if (useBatchCareExpCheck && spec.key !== "collect" && spec.key !== "farming") {
-        const careSpec = {
-          key: spec.key,
-          ...getCareActionExecutor(spec.key),
-        };
-        const batchAction = await runBatchLandCareTask(session, callGameCtl, careSpec, currentStatus, opts);
-        currentStatus = batchAction.nextStatus || currentStatus;
-        const { nextStatus, ...actionEntry } = batchAction;
-        actions.push(actionEntry);
-        if (batchAction.expLimitReached) {
-          careExpLimitReached = true;
-          careExpLimitInfo = {
-            key: spec.key,
-            op: careSpec.op,
-            landId: batchAction.expLimitLandId,
-            result: batchAction.expLimitResult,
-          };
-          break;
-        }
-        if (!batchAction.ok && opts && opts.stopOnError) {
-          break;
-        }
-        continue;
-      }
-
       const trigger = await triggerOneClickOperation(session, callGameCtl, spec.op, {
         includeBefore: false,
         includeAfter: false,
@@ -1123,9 +902,6 @@ async function runOwnFarmAutomation(session, callGameCtl, opts) {
 
   const tasks = await runCurrentFarmOneClickTasks(session, callGameCtl, {
     includeCollect: !opts || opts.includeCollect !== false,
-    includeWater: !opts || opts.includeWater !== false,
-    includeEraseGrass: !opts || opts.includeEraseGrass !== false,
-    includeKillBug: !opts || opts.includeKillBug !== false,
     includeSpecialCollect: !opts || opts.includeSpecialCollect !== false,
     stopCareWhenNoExp: !!(opts && opts.stopCareWhenNoExp),
     actionWaitMs: opts && opts.actionWaitMs,
@@ -1176,9 +952,6 @@ function getFriendPendingActionCount(friend, opts) {
     : {};
   let total = 0;
   if (!opts || opts.includeCollect !== false) total += Number(work.collect) || 0;
-  if (!opts || opts.includeWater !== false) total += Number(work.water) || 0;
-  if (!opts || opts.includeEraseGrass !== false) total += Number(work.eraseGrass) || 0;
-  if (!opts || opts.includeKillBug !== false) total += Number(work.killBug) || 0;
   return total;
 }
 
@@ -1186,22 +959,15 @@ async function runCurrentFriendFarmTasks(session, callGameCtl, statusBefore, opt
   const actionWaitMs = Math.max(0, Number(opts && opts.actionWaitMs) || 0);
   const harvestWaitMs = Math.min(actionWaitMs, 280);
   const includeCollect = !opts || opts.includeCollect !== false;
-  const includeWater = !opts || opts.includeWater !== false;
-  const includeEraseGrass = !opts || opts.includeEraseGrass !== false;
-  const includeKillBug = !opts || opts.includeKillBug !== false;
   const includeSpecialCollect = !opts || opts.includeSpecialCollect !== false;
-  const detectCareExp = !!(opts && opts.stopCareWhenNoExp);
-  const needLandIds = includeWater || includeEraseGrass || includeKillBug;
   const actions = [];
   let currentStatus = statusBefore;
   let specialCollect = null;
-  let careExpLimitReached = false;
-  let careExpLimitInfo = null;
 
   async function refreshStatus() {
     currentStatus = await getFarmStatus(session, callGameCtl, {
       includeGrids: false,
-      includeLandIds: needLandIds,
+      includeLandIds: false,
     });
     return currentStatus;
   }
@@ -1258,9 +1024,7 @@ async function runCurrentFriendFarmTasks(session, callGameCtl, statusBefore, opt
       if (opts && opts.stopOnError) {
         return {
           farmType: "friend",
-          careMode: detectCareExp ? "batch_land_exp_check" : "batch_land",
-          careExpLimitReached,
-          careExpLimitInfo,
+          careMode: "none",
           before: summarizeFarmStatus(statusBefore),
           after: summarizeFarmStatus(currentStatus),
           actions,
@@ -1273,44 +1037,9 @@ async function runCurrentFriendFarmTasks(session, callGameCtl, statusBefore, opt
     await runSpecialCollect(!!(opts && opts.stopOnError));
   }
 
-  const careSpecs = [];
-  if (includeEraseGrass) careSpecs.push({ key: "eraseGrass", ...getCareActionExecutor("eraseGrass") });
-  if (includeKillBug) careSpecs.push({ key: "killBug", ...getCareActionExecutor("killBug") });
-  if (includeWater) careSpecs.push({ key: "water", ...getCareActionExecutor("water") });
-
-  for (let i = 0; i < careSpecs.length; i += 1) {
-    const careSpec = careSpecs[i];
-    const beforeCount = getWorkCount(currentStatus, careSpec.key);
-    if (beforeCount <= 0) continue;
-
-    const careAction = await runBatchLandCareTask(session, callGameCtl, careSpec, currentStatus, {
-      ...opts,
-      detectExp: detectCareExp,
-    });
-    currentStatus = careAction.nextStatus || currentStatus;
-    const { nextStatus, ...actionEntry } = careAction;
-    actions.push(actionEntry);
-
-    if (detectCareExp && careAction.expLimitReached) {
-      careExpLimitReached = true;
-      careExpLimitInfo = {
-        key: careSpec.key,
-        op: careSpec.op,
-        landId: careAction.expLimitLandId,
-        result: careAction.expLimitResult,
-      };
-      break;
-    }
-    if (!careAction.ok && opts && opts.stopOnError) {
-      break;
-    }
-  }
-
   return {
     farmType: "friend",
-    careMode: detectCareExp ? "batch_land_exp_check" : "batch_land",
-    careExpLimitReached,
-    careExpLimitInfo,
+    careMode: "none",
     before: summarizeFarmStatus(statusBefore),
     after: summarizeFarmStatus(currentStatus),
     actions,
@@ -1323,9 +1052,6 @@ async function runFriendStealAutomation(session, callGameCtl, opts) {
   const maxFriends = Math.max(0, Number(opts && opts.maxFriends) || 0) || 5;
   const includeSpecialCollect = !opts || opts.includeSpecialCollect !== false;
   const includeCollect = !opts || opts.includeCollect !== false;
-  const includeWater = !opts || opts.includeWater !== false;
-  const includeEraseGrass = !opts || opts.includeEraseGrass !== false;
-  const includeKillBug = !opts || opts.includeKillBug !== false;
   const friendData = await getFriendList(session, callGameCtl, {
     refresh: !opts || opts.refresh !== false,
     sort: true,
@@ -1334,49 +1060,25 @@ async function runFriendStealAutomation(session, callGameCtl, opts) {
   const friendList = Array.isArray(friendData && friendData.list) ? friendData.list : [];
   const stealableCandidates = friendList.filter((item) => getFriendPendingActionCount(item, {
     includeCollect: true,
-    includeWater: false,
-    includeEraseGrass: false,
-    includeKillBug: false,
   }) > 0).length;
   const candidates = friendList
     .filter((item) => getFriendPendingActionCount(item, {
       includeCollect,
-      includeWater,
-      includeEraseGrass,
-      includeKillBug,
     }) > 0)
     .sort((a, b) => {
       const diff = getFriendPendingActionCount(b, {
         includeCollect,
-        includeWater,
-        includeEraseGrass,
-        includeKillBug,
       }) - getFriendPendingActionCount(a, {
         includeCollect,
-        includeWater,
-        includeEraseGrass,
-        includeKillBug,
       });
       if (diff !== 0) return diff;
       return (Number(a && a.rank) || 0) - (Number(b && b.rank) || 0);
     })
     .slice(0, maxFriends);
   const visits = [];
-  let careExpLimitReached = false;
-  let careExpLimitInfo = null;
 
   for (let i = 0; i < candidates.length; i += 1) {
     const friend = candidates[i];
-    const allowCare = !careExpLimitReached;
-    const visitActionCount = getFriendPendingActionCount(friend, {
-      includeCollect,
-      includeWater: allowCare && includeWater,
-      includeEraseGrass: allowCare && includeEraseGrass,
-      includeKillBug: allowCare && includeKillBug,
-    });
-    if (visitActionCount <= 0) {
-      continue;
-    }
     try {
       const enter = await enterFriendFarm(session, callGameCtl, friend.gid, {
         waitMs: enterWaitMs,
@@ -1384,7 +1086,7 @@ async function runFriendStealAutomation(session, callGameCtl, opts) {
       });
       const beforeStatus = await getFarmStatus(session, callGameCtl, {
         includeGrids: false,
-        includeLandIds: (allowCare && includeWater) || (allowCare && includeEraseGrass) || (allowCare && includeKillBug),
+        includeLandIds: false,
       });
       if (beforeStatus.farmType !== "friend") {
         visits.push({
@@ -1399,17 +1101,10 @@ async function runFriendStealAutomation(session, callGameCtl, opts) {
 
       const tasks = await runCurrentFriendFarmTasks(session, callGameCtl, beforeStatus, {
         includeCollect,
-        includeWater: allowCare && includeWater,
-        includeEraseGrass: allowCare && includeEraseGrass,
-        includeKillBug: allowCare && includeKillBug,
         includeSpecialCollect,
-        stopCareWhenNoExp: allowCare && !!(opts && opts.stopCareWhenNoExp),
         actionWaitMs: opts && opts.actionWaitMs,
         timeoutMs: opts && opts.timeoutMs,
         pollMs: opts && opts.pollMs,
-        expTimeoutMs: opts && opts.expTimeoutMs,
-        expPollMs: opts && opts.expPollMs,
-        expSettleMs: opts && opts.expSettleMs,
         stopOnError: !!(opts && opts.stopOnError),
       });
       const actionList = Array.isArray(tasks && tasks.actions) ? tasks.actions : [];
@@ -1437,10 +1132,6 @@ async function runFriendStealAutomation(session, callGameCtl, opts) {
         collectAfter: getWorkCount(tasks.after, "collect"),
         tasks,
       });
-      if (tasks.careExpLimitReached) {
-        careExpLimitReached = true;
-        careExpLimitInfo = tasks.careExpLimitInfo;
-      }
       if (!visitOk && opts && opts.stopOnError) break;
     } catch (error) {
       visits.push({
@@ -1476,8 +1167,6 @@ async function runFriendStealAutomation(session, callGameCtl, opts) {
     totalCandidates: Number(friendData && friendData.count) || friendList.length,
     actionableCandidates: candidates.length,
     stealableCandidates,
-    careExpLimitReached,
-    careExpLimitInfo,
     visits,
     returnHome,
   };
@@ -1508,9 +1197,6 @@ async function runAutoFarmCycle({ session, callGameCtl, options }) {
   if (ownFarmEnabled) {
     payload.ownFarm = await runOwnFarmAutomation(session, callGameCtl, {
       includeCollect: opts.includeCollect !== false,
-      includeWater: opts.includeWater !== false,
-      includeEraseGrass: opts.includeEraseGrass !== false,
-      includeKillBug: opts.includeKillBug !== false,
       stopCareWhenNoExp: !!opts.stopCareWhenNoExp,
       autoPlantMode: opts.autoPlantMode || "none",
       autoPlantSource: opts.autoPlantSource || "auto",
@@ -1533,9 +1219,6 @@ async function runAutoFarmCycle({ session, callGameCtl, options }) {
   if (friendStealEnabled) {
     payload.friendSteal = await runFriendStealAutomation(session, callGameCtl, {
       includeCollect: opts.includeCollect !== false,
-      includeWater: opts.includeWater !== false,
-      includeEraseGrass: opts.includeEraseGrass !== false,
-      includeKillBug: opts.includeKillBug !== false,
       stopCareWhenNoExp: !!opts.stopCareWhenNoExp,
       refresh: opts.refreshFriendList !== false,
       maxFriends: opts.maxFriends,
