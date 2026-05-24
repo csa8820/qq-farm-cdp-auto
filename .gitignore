@@ -43,3 +43,6 @@ WMPFDebugger/
 deobfuscated/
 总结.md
 .claude/settings.local.json
+
+package-lock.json
+pnpm-lock.yaml
