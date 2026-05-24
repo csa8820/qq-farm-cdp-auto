@@ -56,6 +56,8 @@ function normalizeAutoFarmConfig(raw) {
     autoFarmReturnHome: toBool(src.autoFarmReturnHome, true),
     autoFarmStopOnError: toBool(src.autoFarmStopOnError, false),
     autoFarmStopCareWhenNoExp: toBool(src.autoFarmStopCareWhenNoExp, false),
+    autoFarmDismissOverlay: toBool(src.autoFarmDismissOverlay, true),
+    autoFarmOverlayDismissIntervalMs: toInt(src.autoFarmOverlayDismissIntervalMs, 1500, 500, 10000),
     autoFarmPlantMode,
     autoFarmPlantSource,
     autoFarmPlantSelectedSeedKey: readAutoPlantSelectedSeedKey(src),
@@ -342,6 +344,9 @@ class AutoFarmManager {
       "plantSingleLand",
       "plantSeedsOnLands",
       "autoReconnectIfNeeded",
+      "startOverlayDismissWatcher",
+      "stopOverlayDismissWatcher",
+      "getOverlayDismissWatcherState",
     ]);
   }
 
@@ -368,6 +373,19 @@ class AutoFarmManager {
       const isQqRuntime = !!(transportState && transportState.resolvedTarget === "qq_ws");
       const careExpLimitState = this.config.autoFarmStopCareWhenNoExp ? this.careExpLimitState : null;
       const skipCareBecauseNoExp = !!careExpLimitState;
+
+      // 在自动化周期开始前启动弹窗自动关闭 watcher
+      let overlayWatcherStarted = false;
+      if (this.config.autoFarmDismissOverlay) {
+        try {
+          const watcherState = await callGameCtl(session, 'gameCtl.startOverlayDismissWatcher', [{
+            intervalMs: this.config.autoFarmOverlayDismissIntervalMs,
+            silent: true,
+          }]);
+          overlayWatcherStarted = !!(watcherState && watcherState.running);
+        } catch (_) {}
+      }
+
       const cycleOpts = {
         ownFarmEnabled: due.ownDue,
         friendStealEnabled: due.friendDue,
@@ -391,6 +409,14 @@ class AutoFarmManager {
         callGameCtl: this.callGameCtlImpl.bind(this),
         options: cycleOpts,
       });
+
+      // 自动化周期结束后停止弹窗自动关闭 watcher
+      if (overlayWatcherStarted) {
+        try {
+          await callGameCtl(session, 'gameCtl.stopOverlayDismissWatcher', [{}]);
+        } catch (_) {}
+      }
+
       this._updateCareExpLimitFromResult(result, now);
       const completedAtMs = Date.now();
       this._markRunCompletedAt(due, completedAtMs);

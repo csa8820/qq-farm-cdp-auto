@@ -23,6 +23,18 @@
     lastResult: null
   };
 
+  const overlayDismissWatcherState = {
+    timer: null,
+    running: false,
+    intervalMs: 1500,
+    hold: 32,
+    waitAfter: 300,
+    lastCheckAt: 0,
+    lastHandledAt: 0,
+    lastResult: null,
+    dismissCount: 0
+  };
+
   function out(v) {
     try { console.dir(v); } catch (_) {}
     return v;
@@ -4029,6 +4041,80 @@
     return getReconnectWatcherState(opts);
   }
 
+  function getOverlayDismissWatcherState(opts) {
+    opts = opts || {};
+    const payload = {
+      running: !!overlayDismissWatcherState.timer,
+      busy: overlayDismissWatcherState.running,
+      intervalMs: overlayDismissWatcherState.intervalMs,
+      hold: overlayDismissWatcherState.hold,
+      waitAfter: overlayDismissWatcherState.waitAfter,
+      lastCheckAt: overlayDismissWatcherState.lastCheckAt || null,
+      lastHandledAt: overlayDismissWatcherState.lastHandledAt || null,
+      lastResult: overlayDismissWatcherState.lastResult || null,
+      dismissCount: overlayDismissWatcherState.dismissCount
+    };
+    return opts.silent ? payload : out(payload);
+  }
+
+  function stopOverlayDismissWatcher(opts) {
+    opts = opts || {};
+    if (overlayDismissWatcherState.timer) {
+      clearTimeout(overlayDismissWatcherState.timer);
+      overlayDismissWatcherState.timer = null;
+    }
+    overlayDismissWatcherState.running = false;
+    return getOverlayDismissWatcherState(opts);
+  }
+
+  function startOverlayDismissWatcher(opts) {
+    opts = opts || {};
+    overlayDismissWatcherState.intervalMs = opts.intervalMs == null ? overlayDismissWatcherState.intervalMs : Math.max(500, Number(opts.intervalMs) || overlayDismissWatcherState.intervalMs);
+    overlayDismissWatcherState.hold = opts.hold == null ? overlayDismissWatcherState.hold : Math.max(0, Number(opts.hold) || overlayDismissWatcherState.hold);
+    overlayDismissWatcherState.waitAfter = opts.waitAfter == null ? overlayDismissWatcherState.waitAfter : Math.max(0, Number(opts.waitAfter) || overlayDismissWatcherState.waitAfter);
+
+    if (overlayDismissWatcherState.timer) {
+      clearTimeout(overlayDismissWatcherState.timer);
+      overlayDismissWatcherState.timer = null;
+    }
+
+    const schedule = function (delayMs) {
+      overlayDismissWatcherState.timer = setTimeout(async function () {
+        overlayDismissWatcherState.timer = null;
+        if (overlayDismissWatcherState.running) {
+          schedule(overlayDismissWatcherState.intervalMs);
+          return;
+        }
+
+        overlayDismissWatcherState.running = true;
+        overlayDismissWatcherState.lastCheckAt = Date.now();
+        try {
+          const result = await dismissActiveOverlay({
+            silent: true,
+            hold: overlayDismissWatcherState.hold,
+            waitAfter: overlayDismissWatcherState.waitAfter
+          });
+          overlayDismissWatcherState.lastResult = result;
+          if (result && result.ok) {
+            overlayDismissWatcherState.dismissCount += 1;
+            overlayDismissWatcherState.lastHandledAt = Date.now();
+          }
+        } catch (error) {
+          overlayDismissWatcherState.lastResult = {
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          };
+        } finally {
+          overlayDismissWatcherState.running = false;
+          schedule(overlayDismissWatcherState.intervalMs);
+        }
+      }, Math.max(50, Number(delayMs) || overlayDismissWatcherState.intervalMs));
+    };
+
+    schedule(opts.delayMs == null ? overlayDismissWatcherState.intervalMs : opts.delayMs);
+    return getOverlayDismissWatcherState(opts);
+  }
+
   /**
    * 获取背包中所有种子
    * sortMode: 1=按层级降序, 2=按稀有度降序, 3=按等级降序, 4=按id升序
@@ -6172,6 +6258,9 @@
     openLandAndDiffButtons,
     detectActiveOverlays,
     dismissActiveOverlay,
+    getOverlayDismissWatcherState,
+    startOverlayDismissWatcher,
+    stopOverlayDismissWatcher,
     snapshotNode,
     diffSnapshots,
     tapAndSnapshot,
@@ -6190,6 +6279,9 @@
       'gameCtl.smartClick(path, index)',
       'gameCtl.detectActiveOverlays(opts)',
       'gameCtl.dismissActiveOverlay(opts)',
+      'gameCtl.getOverlayDismissWatcherState()',
+      'gameCtl.startOverlayDismissWatcher(opts)',
+      'gameCtl.stopOverlayDismissWatcher()',
       'gameCtl.dumpFarmNodes(keyword, opts)',
       'gameCtl.dumpFarmCandidates(keyword, opts)',
       'gameCtl.getFarmOwnership()',

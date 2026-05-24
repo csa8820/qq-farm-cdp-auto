@@ -1276,7 +1276,34 @@ async function runAutoFarmCycle({ session, callGameCtl, options }) {
   return payload;
 }
 
+async function startOverlayDismissWatcher(session, callGameCtl, opts) {
+  try {
+    return await callGameCtl(session, 'gameCtl.startOverlayDismissWatcher', [opts || {}]);
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
+async function stopOverlayDismissWatcher(session, callGameCtl) {
+  try {
+    return await callGameCtl(session, 'gameCtl.stopOverlayDismissWatcher', [{}]);
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
+async function getOverlayDismissWatcherState(session, callGameCtl) {
+  try {
+    return await callGameCtl(session, 'gameCtl.getOverlayDismissWatcherState', [{}]);
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
 module.exports = {
   getAutoPlantSeedCatalog,
   runAutoFarmCycle,
+  startOverlayDismissWatcher,
+  stopOverlayDismissWatcher,
+  getOverlayDismissWatcherState,
 };
