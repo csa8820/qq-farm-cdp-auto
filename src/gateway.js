@@ -205,6 +205,15 @@ function createGateway(config) {
     return "cdp";
   }
 
+  function broadcastGameCtlReady() {
+    const payload = JSON.stringify({ event: "gameCtlReady" });
+    for (const client of wss.clients) {
+      if (client.readyState === 1) {
+        client.send(payload);
+      }
+    }
+  }
+
   async function ensureAutomationSession() {
     const target = resolveAutomationRuntimeTarget();
     if (target === "qq_ws") {
@@ -218,10 +227,14 @@ function createGateway(config) {
   }
 
   async function ensureAutomationGameCtl(session) {
+    let result;
     if (isQqRuntimeSession(session)) {
-      return await qqWsSession.ensureGameCtl();
+      result = await qqWsSession.ensureGameCtl();
+    } else {
+      result = await ensureGameCtl(session, projectRoot, REQUIRED_GAME_CTL_METHODS);
     }
-    return await ensureGameCtl(session, projectRoot, REQUIRED_GAME_CTL_METHODS);
+    broadcastGameCtlReady();
+    return result;
   }
 
   async function callAutomationGameCtl(session, pathName, args) {
@@ -665,6 +678,7 @@ function createGateway(config) {
       const script = await fs.readFile(abs, "utf8");
       const expr = `(async () => { ${script}\n; return { injected: true, file: ${JSON.stringify(rel)} }; })()`;
       const value = await session.evaluate(expr, execOpts);
+      broadcastGameCtlReady();
       return value;
     }
 

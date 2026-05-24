@@ -126,6 +126,15 @@ import {
     lastError: "",
     lastOkAt: "",
   };
+  const gameCtlReadyCallbacks = [];
+
+  function onGameCtlReady(callback) {
+    if (autoInject.injected) {
+      callback();
+    } else {
+      gameCtlReadyCallbacks.push(callback);
+    }
+  }
 
   try {
     const cachedQqAppId = localStorage.getItem(LS_QQ_APPID);
@@ -1294,6 +1303,14 @@ import {
       renderPreviewState(data.state, true);
       return true;
     }
+    if (data.event === "gameCtlReady") {
+      var cbs = gameCtlReadyCallbacks.slice();
+      gameCtlReadyCallbacks.length = 0;
+      for (var i_ = 0; i_ < cbs.length; i_++) {
+        try { cbs[i_](); } catch (_) {}
+      }
+      return true;
+    }
     return false;
   }
 
@@ -1426,19 +1443,12 @@ import {
     finishPreviewPointer(ev, true);
   }
 
-  let autoFarmStateLoadedOnce = false;
-
   function loadAutoFarmState(syncForm) {
     return fetch("/api/auto-farm")
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j.ok && j.data) {
           renderAutoFarmState(j.data, !!syncForm);
-          // 游戏就绪后自动加载种子目录（初次成功加载状态时触发一次即可）
-          if (!autoFarmStateLoadedOnce) {
-            autoFarmStateLoadedOnce = true;
-            loadAutoPlantSeedCatalog(true);
-          }
         } else {
           appendLine("自动化状态加载失败", j);
         }
@@ -2318,5 +2328,6 @@ import {
   setInterval(fetchHealth, HEALTH_POLL_MS);
   loadFarmConfig();
   loadAutoFarmState(true);
+  onGameCtlReady(function () { loadAutoPlantSeedCatalog(true); });
   setInterval(function () { loadAutoFarmState(false); }, AUTO_FARM_POLL_MS);
 })();
