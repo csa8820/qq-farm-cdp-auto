@@ -114,6 +114,7 @@ function decorateSeedList(list, source, opts) {
       if (source !== "backpack" || !availableOnly) return true;
       return (Number(item.count) || 0) > 0;
     })
+    .filter((item) => !item.isLock)
     .map((item) => ({
       ...item,
       source,

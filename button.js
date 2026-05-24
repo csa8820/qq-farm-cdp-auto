@@ -4150,7 +4150,8 @@
       layer: Number(detail.layer || seed.layerNum || 0),
       isMultiLandPlant: !!seed.isMultiLandPlant,
       plantSize: Math.max(1, Number(plantData.size) || 1),
-      plantId: plantData.id == null ? null : plantData.id
+      plantId: plantData.id == null ? null : plantData.id,
+      isLock: seed.isLock === true,
     };
   }
 
@@ -4196,6 +4197,9 @@
       .filter(Boolean)
       .filter(function (s) {
         return !opts.availableOnly || s.count > 0;
+      })
+      .filter(function (s) {
+        return !opts.unlockedOnly || !s.isLock;
       });
     return opts.silent ? list : out(list);
   }
@@ -4593,6 +4597,7 @@
   async function getSeedCatalog(opts) {
     opts = opts || {};
     const availableOnly = opts.availableOnly !== false;
+    const unlockedOnly = opts.unlockedOnly === true;
     const includeBackpack = opts.includeBackpack !== false;
     const includeShop = opts.includeShop !== false;
     const catalog = {
@@ -4608,6 +4613,7 @@
         catalog.backpack = filterSingleLandSeeds(getSeedList({
           silent: true,
           availableOnly: availableOnly,
+          unlockedOnly: unlockedOnly,
           sortMode: opts.sortMode || 3
         }));
       } catch (error) {
@@ -5337,6 +5343,7 @@
       const backpackSeeds = filterSingleLandSeeds(getSeedList({
         silent: true,
         availableOnly: true,
+        unlockedOnly: true,
         sortMode: 3
       }));
 
